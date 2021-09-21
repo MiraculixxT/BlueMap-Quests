@@ -16,7 +16,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
-                    <finalName>BluemapQuests-${project.version}</finalName>
+                    <finalName>BlueMapQuests-${project.version}</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                 </configuration>
                 <version>3.1.1</version>
