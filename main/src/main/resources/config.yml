@@ -1,0 +1,37 @@
+# BlueMap-Quests configuration
+area:
+  fill-style:
+    opacity: 0.35
+    color: "0xFF9999"
+  line-style:
+    weight: 5
+    opacity: 0.8
+    color: "0xFF0000"
+circle:
+  fill-style:
+    opacity: 0.35
+    color: "0xFF9999"
+  line-style:
+    weight: 5
+    opacity: 0.8
+    color: "0xFF0000"
+icons:
+  start-NPC: "bookshelf"
+  interact-NPC: "comment"
+  kill-NPC: "skull"
+  delivery-NPC: "basket"
+prefixes:
+  start: "Start"
+  kill-area: "Kill Area"
+  reach-area: "Reach Area"
+  interact: "Interact"
+  kill: "Kill"
+  delivery: "Delivery"
+  wg-region: "WG Region"
+label:
+  name: "Quests"
+  hide-by-default: false
+render:
+  height: 63
+  min-distance: 10
+  max-distance: 500
