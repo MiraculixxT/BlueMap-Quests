@@ -18,6 +18,10 @@
             <url>https://jitpack.io</url>
         </repository>
         <repository>
+            <id>codemc-repo</id>
+            <url>https://repo.codemc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
@@ -27,7 +31,12 @@
         </repository>
         <repository>
             <id>sk89q-repo</id>
-            <url>http://maven.sk89q.com/repo/</url>
+            <url>https://maven.enginehub.org/repo/</url>
+        </repository>
+        <repository>
+            <!-- com.sk89q.spigot:bukkit-classloader-check:1.8-R0.1-SNAPSHOT -->
+            <id>elmakers-repo</id>
+            <url>http://maven.elmakers.com/repository/</url>
         </repository>
     </repositories>
 
@@ -57,15 +66,27 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>com.sk89q.spigot</groupId>
+            <artifactId>bukkit-classloader-check</artifactId>
+            <version>1.8-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>com.github.BlueMap-Minecraft</groupId>
             <artifactId>BlueMapAPI</artifactId>
             <version>v1.6.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.github.PikaMug</groupId>
-            <artifactId>Quests</artifactId>
-            <version>4.0.7</version>
+            <groupId>me.blackvein.quests</groupId>
+            <artifactId>quests-api</artifactId>
+            <version>4.4.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>me.blackvein.quests</groupId>
+            <artifactId>quests-core</artifactId>
+            <version>4.4.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

@@ -18,16 +18,18 @@ import java.util.logging.Level;
 import org.bukkit.Bukkit;
 
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import org.bukkit.plugin.Plugin;
 
 public abstract class AreaProvider {
 
     private static AreaProvider loaded;
 
     static {
-        if (Bukkit.getPluginManager().getPlugin("WorldGuard") != null) {
-            String wgVersion = Bukkit.getPluginManager().getPlugin("WorldGuard").getDescription().getVersion();
+        final Plugin worldGuard = Bukkit.getPluginManager().getPlugin("WorldGuard");
+        if (worldGuard != null) {
+            final String wgVersion = worldGuard.getDescription().getVersion();
             try {
-                String packageName = AreaProvider.class.getPackage().getName();
+                final String packageName = AreaProvider.class.getPackage().getName();
                 if (wgVersion.startsWith("6") || wgVersion.startsWith("5")) {
                     loaded = (AreaProvider) Class.forName(packageName + ".AreaProvider_WG6").newInstance();
                 } else {

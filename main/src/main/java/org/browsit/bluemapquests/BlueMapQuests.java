@@ -25,9 +25,9 @@ import de.bluecolored.bluemap.api.marker.MarkerSet;
 import de.bluecolored.bluemap.api.marker.POIMarker;
 import de.bluecolored.bluemap.api.marker.Shape;
 import de.bluecolored.bluemap.api.marker.ShapeMarker;
-import me.blackvein.quests.Quest;
 import me.blackvein.quests.Quests;
-import me.blackvein.quests.Stage;
+import me.blackvein.quests.quests.IQuest;
+import me.blackvein.quests.quests.IStage;
 import me.blackvein.quests.reflect.worldguard.WorldGuardAPI;
 import net.citizensnpcs.api.CitizensPlugin;
 import net.citizensnpcs.api.npc.NPC;
@@ -49,6 +49,7 @@ import java.awt.Color;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.UUID;
 
 public class BlueMapQuests extends JavaPlugin {
     private Plugin blueMap;
@@ -204,7 +205,7 @@ public class BlueMapQuests extends JavaPlugin {
                     per = 15;
                 }
 
-                getServer().getScheduler().scheduleSyncDelayedTask(this, new UpdateJob(), 40);
+                getServer().getScheduler().scheduleSyncRepeatingTask(this, new UpdateJob(), 40, per);
                 getLogger().info("v" + this.getDescription().getVersion() + " is activated");
             } catch (IOException e) {
                 e.printStackTrace();
@@ -227,40 +228,40 @@ public class BlueMapQuests extends JavaPlugin {
             BlueMapAPI.getInstance().ifPresent(api -> {
                 if (set != null) {
 
-                    for (Quest q : quests.getLoadedQuests()) {
+                    for (final IQuest q : quests.getLoadedQuests()) {
                         if (citizens != null && q.getNpcStart() != null) {
                             npcMarker(q.getNpcStart(), prefixStart, startIcon);
                         }
-                        for (Stage s : q.getStages()) {
+                        for (final IStage s : q.getStages()) {
                             int killIndex = 0;
-                            for (Location l : s.getLocationsToKillWithin()) {
-                                int radius = s.getRadiiToKillWithin().get(killIndex);
-                                String name = s.getKillNames().get(killIndex);
+                            for (final Location l : s.getLocationsToKillWithin()) {
+                                final int radius = s.getRadiiToKillWithin().get(killIndex);
+                                final String name = s.getKillNames().get(killIndex);
                                 cirMarker(l, radius, name, prefixKillArea);
                                 killIndex++;
                             }
                             int reachIndex = 0;
-                            for (Location l : s.getLocationsToReach()) {
-                                int radius = s.getRadiiToReachWithin().get(reachIndex);
-                                String name = s.getLocationNames().get(reachIndex);
+                            for (final Location l : s.getLocationsToReach()) {
+                                final int radius = s.getRadiiToReachWithin().get(reachIndex);
+                                final String name = s.getLocationNames().get(reachIndex);
                                 cirMarker(l, radius, name, prefixReachArea);
                                 reachIndex++;
                             }
                             if (citizens != null) {
-                                for (Integer i : s.getCitizensToInteract()) {
-                                    npcMarker(registry.getById(i), prefixInteract, interactIcon);
+                                for (final UUID i : s.getNpcsToInteract()) {
+                                    npcMarker(registry.getByUniqueId(i), prefixInteract, interactIcon);
                                 }
-                                for (Integer i : s.getCitizensToKill()) {
-                                    npcMarker(registry.getById(i), prefixKill, killIcon);
+                                for (final UUID i : s.getNpcsToKill()) {
+                                    npcMarker(registry.getByUniqueId(i), prefixKill, killIcon);
                                 }
-                                for (Integer i : s.getItemDeliveryTargets()) {
-                                    npcMarker(registry.getById(i), prefixDelivery, deliveryIcon);
+                                for (final UUID i : s.getItemDeliveryTargets()) {
+                                    npcMarker(registry.getByUniqueId(i), prefixDelivery, deliveryIcon);
                                 }
                             }
                             if (worldGuardApi != null) {
                                 if (q.getRegionStart() != null) {
-                                    String r = q.getRegionStart();
-                                    for (World world : getServer().getWorlds()) {
+                                    final String r = q.getRegionStart();
+                                    for (final World world : getServer().getWorlds()) {
                                         try {
                                             if (worldGuardApi.getRegionManager(world) != null) {
                                                 if (worldGuardApi.getRegionManager(world).hasRegion(r)) {
@@ -296,17 +297,14 @@ public class BlueMapQuests extends JavaPlugin {
                 if (l == null) {
                     l = n.getEntity().getLocation();
                 }
-                String id = "quests-npc-" + + n.getId();
-                Marker m = null;
+                final String id = "quests-npc-" + + n.getId();
                 if (set.getMarker(id).isPresent()) {
-                    m = set.getMarker(id).get();
-                }
-                if (m != null) {
-                    // Marker already created using another quest objective
-                    String label = m.getLabel();
+                    Marker m = set.getMarker(id).get();
+                    final String label = m.getLabel();
                     if (!label.contains(labelPrefix)) {
                         m.setLabel(label.replace("NPC:", "/ " + labelPrefix + " NPC:"));
                     }
+                    m.setPosition(new Vector3d(l.getX(), l.getY(), l.getZ()));
                 } else {
                     final Location finalLoc = l;
                     if (BlueMapAPI.getInstance().isPresent() && l.getWorld() != null) {
@@ -330,9 +328,8 @@ public class BlueMapQuests extends JavaPlugin {
             final String id = "quests-loc-" + name + "-" + l.getX() + "-" + l.getY() + "-" + l.getZ();
             if (BlueMapAPI.getInstance().isPresent() && l.getWorld() != null) {
                 BlueMapAPI.getInstance().get().getWorld(l.getWorld().getUID()).ifPresent(blueWorld -> blueWorld.getMaps().forEach(map -> {
-                    final Shape circle = Shape.createCircle(l.getX(), l.getZ(), radius, 16);
-                    final ShapeMarker sm = set.createShapeMarker(id, map, circle, (float) l.getY());
-                    if (sm != null) {
+                    if (set.getMarker(id).isPresent()) {
+                        final ShapeMarker sm = (ShapeMarker) set.getMarker(id).get();
                         sm.setLabel("Quest " + labelPrefix + ": " + name);
                         final Color lineColor = new Color(cirLineColor.getRed(), cirLineColor.getGreen(),
                                 cirLineColor.getBlue(), cirLineOpacity);
@@ -342,6 +339,9 @@ public class BlueMapQuests extends JavaPlugin {
                                 cirFillColor.getBlue(), cirFillOpacity);
                         sm.setFillColor(fillColor);
                         defineDistances(sm, minimumDistance, maximumDistance);
+                    } else {
+                        final Shape circle = Shape.createCircle(l.getX(), l.getZ(), radius, 16);
+                        set.createShapeMarker(id, map, circle, (float) l.getY());
                     }
                 }));
             }
@@ -351,16 +351,8 @@ public class BlueMapQuests extends JavaPlugin {
             final String id = "quests-reg-" + pr.getId();
             if (BlueMapAPI.getInstance().isPresent() && world != null) {
                 BlueMapAPI.getInstance().get().getWorld(world.getUID()).ifPresent(blueWorld -> blueWorld.getMaps().forEach(map -> {
-                    final Map.Entry<double[], double[]> area = AreaProvider.getArea(pr);
-                    final Vector2d[] points = new Vector2d[area.getKey().length];
-                    for (int i = 0; i < area.getKey().length; i++) {
-                        points[i] = new Vector2d(area.getKey()[i], area.getValue()[i]);
-                    }
-
-                    final Vector3d _points = new Vector3d(points[0].getX(), renderHeight, points[0].getY());
-                    final ExtrudeMarker em = set.createExtrudeMarker(id, map, _points, new Shape(points),
-                            (float) AreaProvider.getMinY(pr), (float) AreaProvider.getMaxY(pr));
-                    if (em != null) {
+                    if (set.getMarker(id).isPresent()) {
+                        final ExtrudeMarker em = (ExtrudeMarker) set.getMarker(id).get();
                         em.setLabel("Quest " + labelPrefix + ": " + pr.getId());
                         final Color lineColor = new Color(areaLineColor.getRed(), areaLineColor.getGreen(),
                                 areaLineColor.getBlue(), areaLineOpacity);
@@ -371,6 +363,15 @@ public class BlueMapQuests extends JavaPlugin {
                         em.setFillColor(fillColor);
                         em.setDepthTestEnabled(false);
                         defineDistances(em, minimumDistance, maximumDistance);
+                    } else {
+                        final Map.Entry<double[], double[]> area = AreaProvider.getArea(pr);
+                        final Vector2d[] points = new Vector2d[area.getKey().length];
+                        for (int i = 0; i < area.getKey().length; i++) {
+                            points[i] = new Vector2d(area.getKey()[i], area.getValue()[i]);
+                        }
+                        final Vector3d _points = new Vector3d(points[0].getX(), renderHeight, points[0].getY());
+                        set.createExtrudeMarker(id, map, _points, new Shape(points),
+                                (float) AreaProvider.getMinY(pr), (float) AreaProvider.getMaxY(pr));
                     }
                 }));
             }
@@ -393,8 +394,8 @@ public class BlueMapQuests extends JavaPlugin {
     private class OurServerListener implements Listener {
         @EventHandler(priority= EventPriority.MONITOR)
         public void onPluginEnable(PluginEnableEvent event) {
-            Plugin p = event.getPlugin();
-            String name = p.getDescription().getName();
+            final Plugin p = event.getPlugin();
+            final String name = p.getDescription().getName();
             if (name.equals("BlueMap") || name.equals("Quests") || name.equals("Citizens")
                     || name.equals("WorldGuard")) {
                 if (blueMap.isEnabled() && quests.isEnabled()) {
