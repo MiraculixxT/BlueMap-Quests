@@ -80,13 +80,19 @@
         <dependency>
             <groupId>me.blackvein.quests</groupId>
             <artifactId>quests-api</artifactId>
-            <version>4.4.0</version>
+            <version>4.5.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>me.blackvein.quests</groupId>
             <artifactId>quests-core</artifactId>
-            <version>4.4.0</version>
+            <version>4.5.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.gonalez</groupId>
+            <artifactId>znpc-servers</artifactId>
+            <version>21a0650</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

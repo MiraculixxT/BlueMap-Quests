@@ -20,6 +20,7 @@ import org.bukkit.Bukkit;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import org.bukkit.plugin.Plugin;
 
+@SuppressWarnings("deprecation")
 public abstract class AreaProvider {
 
     private static AreaProvider loaded;

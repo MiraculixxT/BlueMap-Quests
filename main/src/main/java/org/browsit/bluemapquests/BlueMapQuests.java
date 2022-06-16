@@ -25,17 +25,19 @@ import de.bluecolored.bluemap.api.marker.MarkerSet;
 import de.bluecolored.bluemap.api.marker.POIMarker;
 import de.bluecolored.bluemap.api.marker.Shape;
 import de.bluecolored.bluemap.api.marker.ShapeMarker;
+import io.github.znetworkw.znpcservers.ServersNPC;
+import io.github.znetworkw.znpcservers.npc.NPC;
 import me.blackvein.quests.Quests;
 import me.blackvein.quests.quests.IQuest;
 import me.blackvein.quests.quests.IStage;
 import me.blackvein.quests.reflect.worldguard.WorldGuardAPI;
 import net.citizensnpcs.api.CitizensPlugin;
-import net.citizensnpcs.api.npc.NPC;
 import net.citizensnpcs.api.npc.NPCRegistry;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -49,11 +51,16 @@ import java.awt.Color;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public class BlueMapQuests extends JavaPlugin {
+    @SuppressWarnings("unused")
+    public static String uid = "%%__USER__%% | %%__RESOURCE__%% | %%__NONCE__%%";
+
     private Plugin blueMap;
     private CitizensPlugin citizens;
+    private ServersNPC znpcs;
     private static WorldGuardAPI worldGuardApi = null;
     private NPCRegistry registry;
     private Quests quests;
@@ -108,25 +115,18 @@ public class BlueMapQuests extends JavaPlugin {
                 quests = (Quests) pm.getPlugin("Quests");
             }
         }
-        try {
-            if (pm.getPlugin("Citizens") != null) {
-                if (!pm.getPlugin("Citizens").isEnabled()) {
-                    getLogger().warning("Citizens was detected, but is not enabled! Fix it to allow linkage.");
-                } else {
-                    citizens = (CitizensPlugin) pm.getPlugin("Citizens");
-                    if (citizens != null) {
-                        registry = citizens.getNPCRegistry();
-                    }
+        if (quests != null) {
+            if (quests.getDependencies().getCitizens() != null) {
+                citizens = quests.getDependencies().getCitizens();
+                if (citizens != null) {
+                    registry = citizens.getNPCRegistry();
                 }
             }
-        } catch (Exception e) {
-            getLogger().warning("Legacy version of Citizens found. Linkage with Dynmap-Quests not enabled.");
-        }
-        if (pm.getPlugin("WorldGuard") != null) {
-            if (!pm.getPlugin("WorldGuard").isEnabled()) {
-                getLogger().warning("WorldGuard was detected, but is not enabled! Fix it to allow linkage.");
-            } else {
-                worldGuardApi = new WorldGuardAPI(pm.getPlugin("WorldGuard"));
+            if (quests.getDependencies().getZnpcs() != null) {
+                znpcs = quests.getDependencies().getZnpcs();
+            }
+            if (quests.getDependencies().getWorldGuardApi() != null) {
+                worldGuardApi = quests.getDependencies().getWorldGuardApi();
             }
         }
 
@@ -181,7 +181,7 @@ public class BlueMapQuests extends JavaPlugin {
                 areaLineWeight = cfg.getInt("area.line-style.weight", 5);
                 areaLineOpacity = (int) (cfg.getDouble("area.line-style.opacity", 0.8) * 255);
                 areaLineColor = Color.decode(cfg.getString("area.line-style.color", "0xFF0000"));
-                cirFillOpacity =  (int) (cfg.getDouble("circle.fill-style.opacity", 0.35) * 255);;
+                cirFillOpacity =  (int) (cfg.getDouble("circle.fill-style.opacity", 0.35) * 255);
                 cirFillColor = Color.decode(cfg.getString("circle.fill-style.color", "0xFF9999"));
                 cirLineWeight = cfg.getInt("circle.line-style.weight", 5);
                 cirLineOpacity = (int) (cfg.getDouble("circle.line-style.opacity", 0.8) * 255);
@@ -227,7 +227,6 @@ public class BlueMapQuests extends JavaPlugin {
         public void run() {
             BlueMapAPI.getInstance().ifPresent(api -> {
                 if (set != null) {
-
                     for (final IQuest q : quests.getLoadedQuests()) {
                         if (citizens != null && q.getNpcStart() != null) {
                             npcMarker(q.getNpcStart(), prefixStart, startIcon);
@@ -249,13 +248,13 @@ public class BlueMapQuests extends JavaPlugin {
                             }
                             if (citizens != null) {
                                 for (final UUID i : s.getNpcsToInteract()) {
-                                    npcMarker(registry.getByUniqueId(i), prefixInteract, interactIcon);
+                                    npcMarker(i, prefixInteract, interactIcon);
                                 }
                                 for (final UUID i : s.getNpcsToKill()) {
-                                    npcMarker(registry.getByUniqueId(i), prefixKill, killIcon);
+                                    npcMarker(i, prefixKill, killIcon);
                                 }
                                 for (final UUID i : s.getItemDeliveryTargets()) {
-                                    npcMarker(registry.getByUniqueId(i), prefixDelivery, deliveryIcon);
+                                    npcMarker(i, prefixDelivery, deliveryIcon);
                                 }
                             }
                             if (worldGuardApi != null) {
@@ -291,28 +290,58 @@ public class BlueMapQuests extends JavaPlugin {
             });
         }
 
-        public void npcMarker(NPC n, String labelPrefix, String icon) {
-            if (n != null) {
-                Location l = n.getStoredLocation();
-                if (l == null) {
-                    l = n.getEntity().getLocation();
+        public void npcMarker(UUID uuid, String labelPrefix, String icon) {
+            Entity entity;
+            Location l = null;
+            String id = null;
+            String name = null;
+            if (citizens != null) {
+                final net.citizensnpcs.api.npc.NPC n = registry.getByUniqueId(uuid);
+                if (n != null) {
+                    entity = n.getEntity();
+                    l = n.getStoredLocation();
+                    if (l == null && entity != null) {
+                        l = entity.getLocation();
+                    }
+                    id = "quests-npc-" + + n.getId();
+                    name = n.getFullName();
                 }
-                final String id = "quests-npc-" + + n.getId();
+            }
+            if (znpcs != null) {
+                if (quests.getDependencies().getZnpcsUuids().contains(uuid)) {
+                    final Optional<NPC> opt = NPC.all().stream().filter(npc1 -> npc1.getUUID().equals(uuid)).findAny();
+                    if (opt.isPresent()) {
+                        final NPC n = opt.get();
+                        l = n.getLocation();
+                        id = "quests-npc-" + n.getEntityID();
+                        if (n.getBukkitEntity() != null) {
+                            entity = (Entity) n.getBukkitEntity();
+                            if (entity.getCustomName() != null) {
+                                name = entity.getCustomName();
+                            } else {
+                                name = n.getNpcPojo().getHologramLines().get(0);
+                            }
+                        }
+                    }
+                }
+            }
+            if (l != null && l.getWorld() != null) {
                 if (set.getMarker(id).isPresent()) {
-                    Marker m = set.getMarker(id).get();
+                    final Marker m = set.getMarker(id).get();
                     final String label = m.getLabel();
                     if (!label.contains(labelPrefix)) {
                         m.setLabel(label.replace("NPC:", "/ " + labelPrefix + " NPC:"));
                     }
                     m.setPosition(new Vector3d(l.getX(), l.getY(), l.getZ()));
                 } else {
-                    final Location finalLoc = l;
-                    if (BlueMapAPI.getInstance().isPresent() && l.getWorld() != null) {
+                    if (BlueMapAPI.getInstance().isPresent()) {
+                        final Location finalLoc = l;
+                        final String finalName = name;
+                        final String finalId = id;
                         BlueMapAPI.getInstance().get().getWorld(l.getWorld().getUID()).ifPresent(blueWorld -> blueWorld.getMaps().forEach(map -> {
-
                             final Vector3d warpMarkerPos = new Vector3d(finalLoc.getX(), finalLoc.getY(), finalLoc.getZ());
-                            final POIMarker warpMarker = set.createPOIMarker(id, map, warpMarkerPos);
-                            warpMarker.setLabel("Quest " + labelPrefix + " NPC: " + ChatColor.stripColor(n.getFullName()));
+                            final POIMarker warpMarker = set.createPOIMarker(finalId, map, warpMarkerPos);
+                            warpMarker.setLabel("Quest " + labelPrefix + " NPC: " + ChatColor.stripColor(finalName));
                             final Vector2i iconAnchor = warpMarker.getAnchor();
                             if (iconAnchor != null) {
                                 warpMarker.setIcon(icon, iconAnchor);
@@ -397,7 +426,7 @@ public class BlueMapQuests extends JavaPlugin {
             final Plugin p = event.getPlugin();
             final String name = p.getDescription().getName();
             if (name.equals("BlueMap") || name.equals("Quests") || name.equals("Citizens")
-                    || name.equals("WorldGuard")) {
+                    || name.equals("ServersNPC") || name.equals("WorldGuard")) {
                 if (blueMap.isEnabled() && quests.isEnabled()) {
                     activate();
                 }
