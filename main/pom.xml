@@ -38,6 +38,11 @@
             <id>elmakers-repo</id>
             <url>http://maven.elmakers.com/repository/</url>
         </repository>
+        <repository>
+            <!-- PacketEvents for ZNPCsPlus -->
+            <id>codemc-snapshots</id>
+            <url>https://repo.codemc.io/repository/maven-snapshots/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -78,21 +83,21 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>me.blackvein.quests</groupId>
+            <groupId>me.pikamug.quests</groupId>
             <artifactId>quests-api</artifactId>
-            <version>4.5.0</version>
+            <version>5.0.0-rc.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>me.blackvein.quests</groupId>
+            <groupId>me.pikamug.quests</groupId>
             <artifactId>quests-core</artifactId>
-            <version>4.5.0</version>
+            <version>5.0.0-rc.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.github.gonalez</groupId>
-            <artifactId>znpc-servers</artifactId>
-            <version>21a0650</version>
+            <groupId>com.github.Pyrbu</groupId>
+            <artifactId>ZNPCsPlus</artifactId>
+            <version>271b087586</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

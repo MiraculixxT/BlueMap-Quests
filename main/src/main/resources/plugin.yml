@@ -1,8 +1,8 @@
 name: BlueMap-Quests
 main: org.browsit.bluemapquests.BlueMapQuests
-version: 1.2
+version: 2.0
 api-version: 1.13
 description: Display Quests information on BlueMap maps
 author: Browsit
 depend: [BlueMap, Quests]
-soft-depend: [Citizens, ServersNPC, WorldGuard]
+soft-depend: [Citizens, ZNPCsPlus, WorldGuard]

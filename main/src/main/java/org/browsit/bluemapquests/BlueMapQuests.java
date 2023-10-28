@@ -25,12 +25,14 @@ import de.bluecolored.bluemap.api.marker.MarkerSet;
 import de.bluecolored.bluemap.api.marker.POIMarker;
 import de.bluecolored.bluemap.api.marker.Shape;
 import de.bluecolored.bluemap.api.marker.ShapeMarker;
-import io.github.znetworkw.znpcservers.ServersNPC;
 import io.github.znetworkw.znpcservers.npc.NPC;
-import me.blackvein.quests.Quests;
-import me.blackvein.quests.quests.IQuest;
-import me.blackvein.quests.quests.IStage;
-import me.blackvein.quests.reflect.worldguard.WorldGuardAPI;
+import lol.pyr.znpcsplus.ZNPCsPlus;
+import me.pikamug.quests.BukkitQuestsPlugin;
+import me.pikamug.quests.Quests;
+import me.pikamug.quests.dependencies.BukkitDependencies;
+import me.pikamug.quests.dependencies.reflect.worldguard.WorldGuardAPI;
+import me.pikamug.quests.quests.Quest;
+import me.pikamug.quests.quests.components.Stage;
 import net.citizensnpcs.api.CitizensPlugin;
 import net.citizensnpcs.api.npc.NPCRegistry;
 import org.bukkit.ChatColor;
@@ -60,7 +62,7 @@ public class BlueMapQuests extends JavaPlugin {
 
     private Plugin blueMap;
     private CitizensPlugin citizens;
-    private ServersNPC znpcs;
+    private ZNPCsPlus znpcs;
     private static WorldGuardAPI worldGuardApi = null;
     private NPCRegistry registry;
     private Quests quests;
@@ -116,17 +118,18 @@ public class BlueMapQuests extends JavaPlugin {
             }
         }
         if (quests != null) {
-            if (quests.getDependencies().getCitizens() != null) {
-                citizens = quests.getDependencies().getCitizens();
+            final BukkitDependencies depends = (BukkitDependencies) quests.getDependencies();
+            if (depends.getCitizens() != null) {
+                citizens = depends.getCitizens();
                 if (citizens != null) {
                     registry = citizens.getNPCRegistry();
                 }
             }
-            if (quests.getDependencies().getZnpcs() != null) {
-                znpcs = quests.getDependencies().getZnpcs();
+            if (depends.getZnpcsPlus() != null) {
+                znpcs = depends.getZnpcsPlus();
             }
-            if (quests.getDependencies().getWorldGuardApi() != null) {
-                worldGuardApi = quests.getDependencies().getWorldGuardApi();
+            if (depends.getWorldGuardApi() != null) {
+                worldGuardApi = depends.getWorldGuardApi();
             }
         }
 
@@ -227,23 +230,25 @@ public class BlueMapQuests extends JavaPlugin {
         public void run() {
             BlueMapAPI.getInstance().ifPresent(api -> {
                 if (set != null) {
-                    for (final IQuest q : quests.getLoadedQuests()) {
+                    for (final Quest q : quests.getLoadedQuests()) {
                         if (citizens != null && q.getNpcStart() != null) {
                             npcMarker(q.getNpcStart(), prefixStart, startIcon);
                         }
-                        for (final IStage s : q.getStages()) {
+                        for (final Stage s : q.getStages()) {
                             int killIndex = 0;
-                            for (final Location l : s.getLocationsToKillWithin()) {
+                            for (final Object obj : s.getLocationsToKillWithin()) {
+                                final Location location = (Location) obj;
                                 final int radius = s.getRadiiToKillWithin().get(killIndex);
                                 final String name = s.getKillNames().get(killIndex);
-                                cirMarker(l, radius, name, prefixKillArea);
+                                cirMarker(location, radius, name, prefixKillArea);
                                 killIndex++;
                             }
                             int reachIndex = 0;
-                            for (final Location l : s.getLocationsToReach()) {
+                            for (final Object obj : s.getLocationsToReach()) {
+                                final Location location = (Location) obj;
                                 final int radius = s.getRadiiToReachWithin().get(reachIndex);
                                 final String name = s.getLocationNames().get(reachIndex);
-                                cirMarker(l, radius, name, prefixReachArea);
+                                cirMarker(location, radius, name, prefixReachArea);
                                 reachIndex++;
                             }
                             if (citizens != null) {
@@ -308,7 +313,7 @@ public class BlueMapQuests extends JavaPlugin {
                 }
             }
             if (znpcs != null) {
-                if (quests.getDependencies().getZnpcsUuids().contains(uuid)) {
+                if (((BukkitQuestsPlugin) quests).getDependencies().getZnpcsPlusUuids().contains(uuid)) {
                     final Optional<NPC> opt = NPC.all().stream().filter(npc1 -> npc1.getUUID().equals(uuid)).findAny();
                     if (opt.isPresent()) {
                         final NPC n = opt.get();
