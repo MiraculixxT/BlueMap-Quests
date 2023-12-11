@@ -1,6 +1,6 @@
 name: BlueMap-Quests
 main: org.browsit.bluemapquests.BlueMapQuests
-version: 2.0
+version: 2.1
 api-version: 1.13
 description: Display Quests information on BlueMap maps
 author: Browsit

@@ -27,6 +27,10 @@ import de.bluecolored.bluemap.api.marker.Shape;
 import de.bluecolored.bluemap.api.marker.ShapeMarker;
 import io.github.znetworkw.znpcservers.npc.NPC;
 import lol.pyr.znpcsplus.ZNPCsPlus;
+import lol.pyr.znpcsplus.api.NpcApi;
+import lol.pyr.znpcsplus.api.entity.EntityProperty;
+import lol.pyr.znpcsplus.api.npc.Npc;
+import lol.pyr.znpcsplus.api.npc.NpcEntry;
 import me.pikamug.quests.BukkitQuestsPlugin;
 import me.pikamug.quests.Quests;
 import me.pikamug.quests.dependencies.BukkitDependencies;
@@ -62,7 +66,8 @@ public class BlueMapQuests extends JavaPlugin {
 
     private Plugin blueMap;
     private CitizensPlugin citizens;
-    private ZNPCsPlus znpcs;
+    private ZNPCsPlus znpcsLegacy;
+    private NpcApi znpcs;
     private static WorldGuardAPI worldGuardApi = null;
     private NPCRegistry registry;
     private Quests quests;
@@ -126,7 +131,10 @@ public class BlueMapQuests extends JavaPlugin {
                 }
             }
             if (depends.getZnpcsPlus() != null) {
-                znpcs = depends.getZnpcsPlus();
+                znpcsLegacy = depends.getZnpcsPlus();
+            }
+            if (depends.getZnpcsPlusApi() != null) {
+                znpcs = depends.getZnpcsPlusApi();
             }
             if (depends.getWorldGuardApi() != null) {
                 worldGuardApi = depends.getWorldGuardApi();
@@ -299,7 +307,7 @@ public class BlueMapQuests extends JavaPlugin {
             Entity entity;
             Location l = null;
             String id = null;
-            String name = null;
+            String name = "null";
             if (citizens != null) {
                 final net.citizensnpcs.api.npc.NPC n = registry.getByUniqueId(uuid);
                 if (n != null) {
@@ -312,7 +320,7 @@ public class BlueMapQuests extends JavaPlugin {
                     name = n.getFullName();
                 }
             }
-            if (znpcs != null) {
+            if (znpcsLegacy != null) {
                 if (((BukkitQuestsPlugin) quests).getDependencies().getZnpcsPlusUuids().contains(uuid)) {
                     final Optional<NPC> opt = NPC.all().stream().filter(npc1 -> npc1.getUUID().equals(uuid)).findAny();
                     if (opt.isPresent()) {
@@ -326,6 +334,21 @@ public class BlueMapQuests extends JavaPlugin {
                             } else {
                                 name = n.getNpcPojo().getHologramLines().get(0);
                             }
+                        }
+                    }
+                }
+            }
+            if (znpcs != null) {
+                final NpcApi npcApi = ((BukkitQuestsPlugin) quests).getDependencies().getZnpcsPlusApi();
+                final NpcEntry entry = npcApi.getNpcRegistry().getByUuid(uuid);
+                if (entry != null) {
+                    final Npc znpc = entry.getNpc();
+                    l = znpc.getLocation().toBukkitLocation(znpc.getWorld());
+                    id = "quests-npc-" + entry.getId();
+                    EntityProperty<String> displayNameProperty = npcApi.getPropertyRegistry().getByName("display_name", String.class);
+                    if (displayNameProperty != null) {
+                        if (znpc.hasProperty(displayNameProperty)) {
+                            name = znpc.getProperty(displayNameProperty);
                         }
                     }
                 }
