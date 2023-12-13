@@ -227,7 +227,8 @@ public class BlueMapQuests extends JavaPlugin {
             getLogger().severe("Invalid " + imagePath + " icon path " + imagePath);
             return null;
         }
-        //TODO
+
+        //TODO - Publishing file to webroot manually. Path.of() is Java 11+ so it might need to be changed.
         File file = new File(api.getWebApp().getWebRoot().toString(), "bmquests/" + iconName);
         Files.copy(Path.of(imagePath), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
