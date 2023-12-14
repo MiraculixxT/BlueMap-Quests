@@ -17,6 +17,8 @@ import com.flowpowered.math.vector.Vector2i;
 import com.flowpowered.math.vector.Vector3d;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import de.bluecolored.bluemap.api.BlueMapAPI;
+import de.bluecolored.bluemap.api.BlueMapWorld;
+import de.bluecolored.bluemap.api.gson.MarkerGson;
 import de.bluecolored.bluemap.api.markers.*;
 import io.github.znetworkw.znpcservers.npc.NPC;
 import lol.pyr.znpcsplus.ZNPCsPlus;
@@ -32,6 +34,7 @@ import me.pikamug.quests.quests.Quest;
 import me.pikamug.quests.quests.components.Stage;
 import net.citizensnpcs.api.CitizensPlugin;
 import net.citizensnpcs.api.npc.NPCRegistry;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -47,14 +50,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.awt.*;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.List;
+import java.util.*;
 
 public class BlueMapQuests extends JavaPlugin {
     @SuppressWarnings("unused")
@@ -96,7 +98,7 @@ public class BlueMapQuests extends JavaPlugin {
     BlueMapAPI markerApi;
 
     private FileConfiguration cfg;
-    private MarkerSet set;
+    private HashMap<UUID, List<MarkerSet>> sets;
     private boolean reload = false;
 
     @Override
@@ -165,17 +167,37 @@ public class BlueMapQuests extends JavaPlugin {
 
                 // Add marker set (make it transient)
                 setId = "bluemap-quests.set";
-                markerApi.getMaps().forEach(map -> {
-                    set = map.getMarkerSets().get(cfg.getString("label.name"));
+                sets = new HashMap<>();
+                Bukkit.getWorlds().forEach(world -> {
+                    Optional<BlueMapWorld> blueWorldOptional = api.getWorld(world);
+                    if (blueWorldOptional.isPresent()) {
+                        BlueMapWorld blueWorld = blueWorldOptional.get();
+                        List<MarkerSet> worldSets = new ArrayList<>();
 
-                    if (set == null) {
-                        set = MarkerSet.builder().label(cfg.getString("label.name", "Quests")).build();
-                        map.getMarkerSets().put(setId, set);
+                        blueWorld.getMaps().forEach(map -> {
+                            MarkerSet set = map.getMarkerSets().get(cfg.getString("label.name"));
+
+                            if (set == null) {
+                                // Load marker set
+                                File markerFile = new File(getDataFolder(), world.getName() + ".json");
+                                if (markerFile.exists()) {
+                                    try (FileReader reader = new FileReader(markerFile)) {
+                                        set = MarkerGson.INSTANCE.fromJson(reader, MarkerSet.class);
+                                    } catch (IOException ex) {
+                                        // handle io-exception
+                                        ex.printStackTrace();
+                                        set = MarkerSet.builder().label(cfg.getString("label.name", "Quests")).build();
+                                    }
+                                } else set = MarkerSet.builder().label(cfg.getString("label.name", "Quests")).build();
+                                map.getMarkerSets().put(setId, set);
+                            }
+                            set.setDefaultHidden(cfg.getBoolean("layer.hide-by-default", false));
+
+                            worldSets.add(set);
+                        });
+                        sets.put(world.getUID(), worldSets);
                     }
-
-                    set.setDefaultHidden(cfg.getBoolean("layer.hide-by-default", false));
                 });
-
 
                 // Setup variables
                 final String startPath = "icons.start-NPC";
@@ -228,18 +250,21 @@ public class BlueMapQuests extends JavaPlugin {
             return null;
         }
 
-        //TODO - Publishing file to webroot manually. Path.of() is Java 11+ so it might need to be changed.
-        File file = new File(api.getWebApp().getWebRoot().toString(), "bmquests/" + iconName);
-        Files.copy(Path.of(imagePath), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        File target = new File(api.getWebApp().getWebRoot().toString(), "bmquests/" + iconName);
+        File source = new File(imagePath);
+        if (!source.exists()) {
+            source.mkdirs();
+        }
+        Files.copy(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-        return file.toPath().toString();
+        return target.toPath().toString();
     }
 
     private class UpdateJob implements Runnable {
         @Override
         public void run() {
             BlueMapAPI.getInstance().ifPresent(api -> {
-                if (set != null) {
+                if (sets != null) {
                     for (final Quest q : quests.getLoadedQuests()) {
                         if (citizens != null && q.getNpcStart() != null) {
                             npcMarker(q.getNpcStart(), prefixStart, startIcon);
@@ -350,38 +375,47 @@ public class BlueMapQuests extends JavaPlugin {
                 }
             }
             if (l != null && l.getWorld() != null) {
-                if (set.getMarkers().containsKey(id)) {
-                    final Marker m = set.get(id);
-                    final String label = m.getLabel();
-                    if (!label.contains(labelPrefix)) {
-                        m.setLabel(label.replace("NPC:", "/ " + labelPrefix + " NPC:"));
+                // Copy final variables for lambda
+                String finalId1 = id;
+                Location finalL = l;
+                String finalName1 = name;
+
+                // Add marker to sets
+                sets.get(l.getWorld().getUID()).forEach(set -> {
+                    if (set.getMarkers().containsKey(finalId1)) {
+                        final Marker m = set.get(finalId1);
+                        final String label = m.getLabel();
+                        if (!label.contains(labelPrefix)) {
+                            m.setLabel(label.replace("NPC:", "/ " + labelPrefix + " NPC:"));
+                        }
+                        m.setPosition(new Vector3d(finalL.getX(), finalL.getY(), finalL.getZ()));
+                    } else {
+                        if (BlueMapAPI.getInstance().isPresent()) {
+                            final Location finalLoc = finalL;
+                            final String finalName = finalName1;
+                            final String finalId = finalId1;
+                            BlueMapAPI.getInstance().get().getWorld(finalL.getWorld().getUID()).ifPresent(blueWorld -> blueWorld.getMaps().forEach(map -> {
+                                final Vector3d warpMarkerPos = new Vector3d(finalLoc.getX(), finalLoc.getY(), finalLoc.getZ());
+                                final POIMarker warpMarker = POIMarker.builder()
+                                    .label("Quest " + labelPrefix + " NPC: " + ChatColor.stripColor(finalName))
+                                    .position(warpMarkerPos)
+                                    .icon(icon, 0, 0)
+                                    .anchor(new Vector2i(16, 16))
+                                    .build();
+                                set.put(finalId, warpMarker);
+                                defineDistances(warpMarker, minimumDistance, maximumDistance);
+                            }));
+                        }
                     }
-                    m.setPosition(new Vector3d(l.getX(), l.getY(), l.getZ()));
-                } else {
-                    if (BlueMapAPI.getInstance().isPresent()) {
-                        final Location finalLoc = l;
-                        final String finalName = name;
-                        final String finalId = id;
-                        BlueMapAPI.getInstance().get().getWorld(l.getWorld().getUID()).ifPresent(blueWorld -> blueWorld.getMaps().forEach(map -> {
-                            final Vector3d warpMarkerPos = new Vector3d(finalLoc.getX(), finalLoc.getY(), finalLoc.getZ());
-                            final POIMarker warpMarker = POIMarker.builder()
-                                .label("Quest " + labelPrefix + " NPC: " + ChatColor.stripColor(finalName))
-                                .position(warpMarkerPos)
-                                .icon(icon, 0,0)
-                                .anchor(new Vector2i(16, 16))
-                                .build();
-                            set.put(finalId, warpMarker);
-                            defineDistances(warpMarker, minimumDistance, maximumDistance);
-                        }));
-                    }
-                }
+                });
             }
         }
 
         public void cirMarker(Location l, double radius, String name, String labelPrefix) {
             final String id = "quests-loc-" + name + "-" + l.getX() + "-" + l.getY() + "-" + l.getZ();
             if (BlueMapAPI.getInstance().isPresent() && l.getWorld() != null) {
-                BlueMapAPI.getInstance().get().getWorld(l.getWorld().getUID()).ifPresent(blueWorld -> blueWorld.getMaps().forEach(map -> {
+                // Loop through all maps for this world
+                sets.get(l.getWorld().getUID()).forEach(set -> {
                     if (set.getMarkers().containsKey(id)) {
                         final ShapeMarker sm = (ShapeMarker) set.get(id);
                         sm.setLabel("Quest " + labelPrefix + ": " + name);
@@ -400,14 +434,15 @@ public class BlueMapQuests extends JavaPlugin {
                             .build();
                         set.put(id, marker);
                     }
-                }));
+                });
             }
         }
 
         public void areaMarker(ProtectedRegion pr, String labelPrefix, World world) {
             final String id = "quests-reg-" + pr.getId();
             if (BlueMapAPI.getInstance().isPresent() && world != null) {
-                BlueMapAPI.getInstance().get().getWorld(world.getUID()).ifPresent(blueWorld -> blueWorld.getMaps().forEach(map -> {
+                // Loop through all maps for this world
+                sets.get(world.getUID()).forEach(set -> {
                     if (set.getMarkers().containsKey(id)) {
                         final ExtrudeMarker em = (ExtrudeMarker) set.get(id);
                         em.setLabel("Quest " + labelPrefix + ": " + pr.getId());
@@ -433,7 +468,7 @@ public class BlueMapQuests extends JavaPlugin {
                             .build();
                         set.put(id, marker);
                     }
-                }));
+                });
             }
         }
     }
