@@ -18,7 +18,6 @@ import com.flowpowered.math.vector.Vector3d;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import de.bluecolored.bluemap.api.BlueMapAPI;
 import de.bluecolored.bluemap.api.BlueMapWorld;
-import de.bluecolored.bluemap.api.gson.MarkerGson;
 import de.bluecolored.bluemap.api.markers.*;
 import io.github.znetworkw.znpcservers.npc.NPC;
 import lol.pyr.znpcsplus.ZNPCsPlus;
@@ -49,12 +48,7 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.awt.*;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.io.*;
 import java.util.List;
 import java.util.*;
 
@@ -179,16 +173,7 @@ public class BlueMapQuests extends JavaPlugin {
 
                             if (set == null) {
                                 // Load marker set
-                                File markerFile = new File(getDataFolder(), world.getName() + ".json");
-                                if (markerFile.exists()) {
-                                    try (FileReader reader = new FileReader(markerFile)) {
-                                        set = MarkerGson.INSTANCE.fromJson(reader, MarkerSet.class);
-                                    } catch (IOException ex) {
-                                        // handle io-exception
-                                        ex.printStackTrace();
-                                        set = MarkerSet.builder().label(cfg.getString("label.name", "Quests")).build();
-                                    }
-                                } else set = MarkerSet.builder().label(cfg.getString("label.name", "Quests")).build();
+                                set = MarkerSet.builder().label(cfg.getString("label.name", "Quests")).build();
                                 map.getMarkerSets().put(setId, set);
                             }
                             set.setDefaultHidden(cfg.getBoolean("layer.hide-by-default", false));
@@ -244,20 +229,35 @@ public class BlueMapQuests extends JavaPlugin {
     }
 
     public String createImage(String imagePath, BlueMapAPI api, String iconName) throws IOException {
-        final InputStream stream = getResource(imagePath);
-        if (stream == null) {
+        final InputStream inputStream = getResource(imagePath);
+        if (inputStream == null) {
             getLogger().severe("Invalid " + imagePath + " icon path " + imagePath);
             return null;
         }
 
-        File target = new File(api.getWebApp().getWebRoot().toString(), "bmquests/" + iconName);
-        File source = new File(imagePath);
-        if (!source.exists()) {
-            source.mkdirs();
+        // Prepare destination inside webroot
+        String toPathRelative = "assets/bmquests/" + iconName + ".png";
+        File target = new File(api.getWebApp().getWebRoot().toString(), toPathRelative);
+        if (!target.exists()) {
+            target.getParentFile().mkdirs();
         }
-        Files.copy(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-        return target.toPath().toString();
+        // Perform copy from resource to webroot
+        try (OutputStream outputStream = new FileOutputStream(target.toPath().toString(), false)) {
+
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+
+        } catch (IOException e) {
+            getLogger().severe("Error copying " + imagePath + " icon to " + toPathRelative);
+            e.printStackTrace();
+        }
+
+        // Return a relative path for further usage
+        return toPathRelative;
     }
 
     private class UpdateJob implements Runnable {
