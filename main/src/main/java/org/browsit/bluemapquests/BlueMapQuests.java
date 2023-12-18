@@ -431,6 +431,7 @@ public class BlueMapQuests extends JavaPlugin {
                         final de.bluecolored.bluemap.api.math.Shape circle = de.bluecolored.bluemap.api.math.Shape.createCircle(l.getX(), l.getZ(), radius, 16);
                         ShapeMarker marker = ShapeMarker.builder()
                             .shape(circle, (float) l.getY())
+                            .label("Quest " + labelPrefix + ": " + name)
                             .build();
                         set.put(id, marker);
                     }
@@ -464,6 +465,7 @@ public class BlueMapQuests extends JavaPlugin {
                         final Vector3d _points = new Vector3d(points[0].getX(), renderHeight, points[0].getY());
                         ExtrudeMarker marker = ExtrudeMarker.builder()
                             .position(_points)
+                            .label("Quest " + labelPrefix + ": " + pr.getId())
                             .shape(new de.bluecolored.bluemap.api.math.Shape.Builder().addPoints(points).build(), (float) AreaProvider.getMinY(pr), (float) AreaProvider.getMaxY(pr))
                             .build();
                         set.put(id, marker);
